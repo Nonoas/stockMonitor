@@ -2,7 +2,6 @@ import io.github.fvarrui.javapackager.gradle.PackageTask
 
 buildscript {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
         mavenLocal()
         mavenCentral()
     }
@@ -14,55 +13,64 @@ buildscript {
 plugins {
     id 'java'
     id 'application'
-    id 'org.javamodularity.moduleplugin' version '1.8.12'
-    id 'org.openjfx.javafxplugin' version '0.0.13'
-    id 'org.beryx.jlink' version '2.25.0'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.0'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
+
 apply plugin: 'io.github.fvarrui.javapackager.plugin'
 
-
-group 'indi.yiyi.stockmonitor'
-version '1.0-SNAPSHOT'
-
-
-
-ext {
-    junitVersion = '5.10.0'
-}
+group 'indi.yiyi'
+version '1.3.3'
 
 sourceCompatibility = '17'
-targetCompatibility = '17'
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
-application {
-    mainClass = 'indi.yiyi.stockmonitor.StockApp'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+ext {
+    versions = [
+            'jfx': '21.0.3'
+    ]
 }
 
 javafx {
-    version = '17.0.6'
-    modules = ['javafx.controls', 'javafx.fxml']
+    version = "${versions.jfx}"
+    modules = ['javafx.controls', "javafx.swing"]
 }
+
 
 dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
+
+    // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core
+    implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+    implementation 'com.melloware:jintellitype:1.4.0'
+    implementation 'org.flywaydb:flyway-core:10.12.0'
+    implementation 'cn.hutool:hutool-db:5.8.25'
     implementation 'io.github.nonoas:jfx-flat-ui:1.0.2'
     implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+    implementation "org.openjfx:javafx-controls:${versions.jfx}"
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    // https://mvnrepository.com/artifact/org.yaml/snakeyaml
+    implementation 'org.yaml:snakeyaml:2.2'
 }
 
-test {
-    useJUnitPlatform()
-}
+mainClassName = 'indi.yiyi.stockmonitor.MainKt'
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
-        attributes 'Main-Class': application.mainClass
+        attributes 'Main-Class': mainClassName
     }
 }
 
@@ -72,10 +80,12 @@ tasks.register('packageMyApp', PackageTask) {
     mainClass = mainClassName
     // optional
     modules = ["java.base", "java.management", "java.net.http", "java.scripting", "java.sql", "java.naming",
-               "jdk.jsobject", "jdk.unsupported", "jdk.unsupported.desktop", "jdk.xml.dom"]
+               "jdk.jsobject", "jdk.unsupported", "jdk.unsupported.desktop", "jdk.xml.dom","jdk.crypto.ec"]
     bundleJre = true
     generateInstaller = false
     administratorRequired = false
     winConfig { createZipball = true }
 
 }
+
+

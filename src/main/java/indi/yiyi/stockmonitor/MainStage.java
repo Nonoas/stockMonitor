@@ -394,7 +394,7 @@ public class MainStage extends AppStage {
             if (nv != null) {
                 String digits = nv.replaceAll("\\D", "");
                 if (!digits.equals(nv)) codeField.setText(digits);
-                if (digits.length() > 6) codeField.setText(digits.substring(0, 6));
+                if (digits.length() > 6) codeField.setText(digits.substring(0, 7));
             }
         });
 
@@ -448,8 +448,7 @@ public class MainStage extends AppStage {
             if (err != null || opt.isEmpty() || opt.get().getName() == null || opt.get().getName().isBlank()) {
                 // 回滚 CSV
                 CSVConfig.removeStock(market, code);
-                waiting.setContentText("抱歉，没有找到这只股票的有效行情（可能代码错误/无数据/停牌）。");
-                // FXAlert.error(stage, "错误", "抱歉，没有找到这只股票的有效行情（可能代码错误/无数据/停牌）。");
+                waiting.setContentText("抱歉，没有找到" + code + "这只股票的有效行情（可能代码错误/无数据/停牌）。");
                 return;
             }
 

@@ -12,8 +12,4 @@ public class StockApp extends Application {
         MainStage mainStage = new MainStage();
         mainStage.show();
     }
-
-    public static void main(String[] args) {
-        launch(args);
-    }
 }
