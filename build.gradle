@@ -1,3 +1,16 @@
+import io.github.fvarrui.javapackager.gradle.PackageTask
+
+buildscript {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        mavenLocal()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'io.github.fvarrui:javapackager:1.7.5'
+    }
+}
+
 plugins {
     id 'java'
     id 'application'
@@ -5,15 +18,13 @@ plugins {
     id 'org.openjfx.javafxplugin' version '0.0.13'
     id 'org.beryx.jlink' version '2.25.0'
 }
+apply plugin: 'io.github.fvarrui.javapackager.plugin'
+
 
 group 'indi.yiyi.stockmonitor'
 version '1.0-SNAPSHOT'
 
-repositories {
-    mavenLocal()
-    maven { url 'https://maven.aliyun.com/repository/google' }
-    mavenCentral()
-}
+
 
 ext {
     junitVersion = '5.10.0'
@@ -48,14 +59,23 @@ test {
     useJUnitPlatform()
 }
 
-jlink {
-    imageZip = project.file("${buildDir}/distributions/app-${javafx.platform.classifier}.zip")
-    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
-    launcher {
-        name = 'app'
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass
     }
 }
 
-jlinkZip {
-    group = 'distribution'
+tasks.register('packageMyApp', PackageTask) {
+    dependsOn clean, jar
+    // mandatory
+    mainClass = mainClassName
+    // optional
+    modules = ["java.base", "java.management", "java.net.http", "java.scripting", "java.sql", "java.naming",
+               "jdk.jsobject", "jdk.unsupported", "jdk.unsupported.desktop", "jdk.xml.dom"]
+    bundleJre = true
+    generateInstaller = false
+    administratorRequired = false
+    winConfig { createZipball = true }
+
 }

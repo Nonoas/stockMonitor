@@ -80,3 +80,17 @@
 .search-button-selected {
     -fx-background-color: -color-button-border-focused, -color-button-bg-hover;
 }
+
+
+/* 整行里所有单元格文字跟随伪类变色 */
+.table-row-cell:up .table-cell {
+    -fx-text-fill: red;
+}
+
+.table-row-cell:down .table-cell {
+    -fx-text-fill: green;
+}
+
+/* 可选：给行一个很淡的背景提示 */
+.table-row-cell:up   { -fx-background-color: rgba(255,0,0,0.06); }
+.table-row-cell:down { -fx-background-color: rgba(0,128,0,0.06); }
