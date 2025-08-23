@@ -92,5 +92,20 @@
 }
 
 /* 可选：给行一个很淡的背景提示 */
-.table-row-cell:up   { -fx-background-color: rgba(255,0,0,0.06); }
-.table-row-cell:down { -fx-background-color: rgba(0,128,0,0.06); }
+.table-row-cell:up {
+    -fx-background-color: rgba(255, 0, 0, 0.06);
+}
+
+.table-row-cell:down {
+    -fx-background-color: rgba(0, 128, 0, 0.06);
+}
+
+.table-row-cell:up:hover,
+.table-row-cell:up:selected {
+    -fx-background-color: rgba(255, 0, 0, 0.2);
+}
+
+.table-row-cell:down:hover,
+.table-row-cell:down:selected {
+    -fx-background-color: rgba(0, 128, 0, 0.2);
+}

@@ -276,10 +276,21 @@ public class PlayfulHelper {
         Stage toast = new Stage(StageStyle.TRANSPARENT);
         toast.initOwner(owner);
         toast.setAlwaysOnTop(true);
+
         Label l = new Label(text);
-        l.setStyle("-fx-background-color: rgba(0,0,0,0.75); -fx-text-fill: white; -fx-padding: 8 12; -fx-background-radius: 9999; -fx-font-size: 13px;");
-        Scene sc = new Scene(new HBox(l));
-        sc.setFill(null);
+        l.setStyle(
+                "-fx-background-color: rgba(0,0,0,0.75);" +
+                        "-fx-text-fill: white;" +
+                        "-fx-padding: 8 12;" +
+                        "-fx-background-radius: 9999;" +
+                        "-fx-font-size: 13px;"
+        );
+
+        HBox root = new HBox(l);
+        root.setStyle("-fx-background-color: transparent;"); // 关键：容器透明
+
+        Scene sc = new Scene(root);
+        sc.setFill(javafx.scene.paint.Color.TRANSPARENT);   // 关键：Scene透明
         toast.setScene(sc);
 
         Rectangle2D vb = Screen.getPrimary().getVisualBounds();
@@ -293,9 +304,9 @@ public class PlayfulHelper {
         new Thread(() -> {
             try {
                 Thread.sleep(1200);
-            } catch (InterruptedException ignored) {
-            }
+            } catch (InterruptedException ignored) {}
             Platform.runLater(toast::close);
         }, "toast-hide").start();
     }
+
 }

@@ -8,6 +8,7 @@ import indi.yiyi.stockmonitor.data.StockRow;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
 import indi.yiyi.stockmonitor.view.PlayfulHelper;
+import indi.yiyi.stockmonitor.view.StockSearchDialog;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -161,7 +162,7 @@ public class MainStage extends AppStage {
                 StockRow item = row.getItem();
                 if (item == null) return;
 
-                var r = FXAlert.confirm(stage, "确认删除", "确定要删除 " + item.getCode() + "（" + item.getName() + "）并从 CSV 移除吗？");
+                var r = FXAlert.confirm(stage, "确认删除", "确定要删除 " + item.getCode() + "（" + item.getName() + "）吗？");
                 if (r.isEmpty() || r.get() != ButtonType.OK) return;
 
                 // 1) 从 CSV 移除
@@ -379,97 +380,70 @@ public class MainStage extends AppStage {
     }
 
     private void showAddStockDialog(Stage owner) {
-        Dialog<ButtonType> dlg = new Dialog<>();
-        dlg.initOwner(owner);
-        dlg.setTitle("添加股票");
-        dlg.setHeaderText("请输入市场与股票代码（例如：0 / 000001）");
-
-        ComboBox<String> marketBox = new ComboBox<>();
-        marketBox.getItems().addAll("0（深市SZ）", "1（沪市SH）");
-        marketBox.getSelectionModel().selectFirst();
-
-        TextField codeField = new TextField();
-        codeField.setPromptText("6位数字，如 000001 / 600519 / 513100");
-        codeField.textProperty().addListener((obs, ov, nv) -> {
-            if (nv != null) {
-                String digits = nv.replaceAll("\\D", "");
-                if (!digits.equals(nv)) codeField.setText(digits);
-                if (digits.length() > 6) codeField.setText(digits.substring(0, 7));
+        StockSearchDialog dialog = new StockSearchDialog();
+        dialog.initOwner(owner);
+        dialog.showAndWait().ifPresent(suggestion -> {
+            String codeVar = suggestion.getCode();
+            String marketVar = "-1";
+            if (codeVar.startsWith("SZ")) {
+                marketVar = "0";
+                codeVar = codeVar.replace("SZ", "");
+            } else if (codeVar.startsWith("SH")) {
+                marketVar = "1";
+                codeVar = codeVar.replace("SH", "");
+            } else {
+                FXAlert.info(owner, "股票不支持", "暂不支持添加此类型");
+                return;
             }
-        });
+            String market = marketVar;
+            String code = codeVar;
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.addRow(0, new Label("市场："), marketBox);
-        grid.addRow(1, new Label("代码："), codeField);
-        grid.setStyle("-fx-padding: 10;");
-        dlg.getDialogPane().setContent(grid);
-
-        ButtonType ok = new ButtonType("添加", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancel = ButtonType.CANCEL;
-        dlg.getDialogPane().getButtonTypes().setAll(ok, cancel);
-
-        Node okBtn = dlg.getDialogPane().lookupButton(ok);
-        okBtn.setDisable(true);
-        codeField.textProperty().addListener((obs, ov, nv) ->
-                okBtn.setDisable(nv == null || !nv.matches("\\d{1,8}"))
-        );
-
-        var res = dlg.showAndWait();
-        if (res.isEmpty() || res.get() != ok) return;
-
-        String market = marketBox.getSelectionModel().getSelectedItem().startsWith("0") ? "0" : "1";
-        String code = codeField.getText().trim();
-        // === 新增：校验股票代码必须是6位 ===
-        if (code.length() != 6) {
-            FXAlert.error(owner, "输入错误", "股票代码必须是 6 位数字！");
-            return;
-        }
-
-        // === 先查重 ===
-        if (!CSVConfig.addStock(market, code)) {
-            // addStock 内部去重：如果已存在则不写盘并返回 false
-            new Alert(Alert.AlertType.INFORMATION, "这只股票已经在列表里啦～").showAndWait();
-            return;
-        }
-
-        // === 校验存在性 ===
-        Alert waiting = new Alert(Alert.AlertType.INFORMATION, "正在校验这只股票是否存在，请稍候…");
-        waiting.setHeaderText(null);
-        waiting.initOwner(owner);
-        UIUtil.setDialogIcon(waiting, owner);
-        Node okBtnV = waiting.getDialogPane().lookupButton(ButtonType.OK);
-        okBtnV.setDisable(true);
-        waiting.show();
-
-        validateStock(market, code).whenComplete((opt, err) -> Platform.runLater(() -> {
-            okBtnV.setDisable(false);
-            if (err != null || opt.isEmpty() || opt.get().getName() == null || opt.get().getName().isBlank()) {
-                // 回滚 CSV
-                CSVConfig.removeStock(market, code);
-                waiting.setContentText("抱歉，没有找到" + code + "这只股票的有效行情（可能代码错误/无数据/停牌）。");
+            // === 先查重 ===
+            if (!CSVConfig.addStock(market, code)) {
+                // addStock 内部去重：如果已存在则不写盘并返回 false
+                new Alert(Alert.AlertType.INFORMATION, "这只股票已经在列表里啦～").showAndWait();
                 return;
             }
 
-            // 校验通过：更新表格（立即展示这条）
-            StockRow row = opt.get();
-            String key = row.getMarketCode() + "_" + row.getRawCode();
-            StockRow existed = rowByKey.get(key);
-            if (existed == null) {
-                row.setIndex(data.size() + 1);
-                rowByKey.put(key, row);
-                data.add(row);
-            } else {
-                existed.setName(row.getName());
-                existed.setPrice(row.getPrice());
-                existed.setChangeRate(row.getChangeRate());
-                existed.setChangeRateStr(row.getChangeRateStr());
-                existed.setChangeAmt(row.getChangeAmt());
-            }
-            waiting.setContentText("添加成功："
-                    + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName());
-        }));
+            // === 校验存在性 ===
+            Alert waiting = new Alert(Alert.AlertType.INFORMATION, "正在校验这只股票是否存在，请稍候…");
+            waiting.setHeaderText(null);
+            waiting.initOwner(owner);
+            UIUtil.setDialogIcon(waiting, owner);
+            Node okBtnV = waiting.getDialogPane().lookupButton(ButtonType.OK);
+            okBtnV.setDisable(true);
+            waiting.show();
+
+            validateStock(market, code).whenComplete((opt, err) -> Platform.runLater(() -> {
+                okBtnV.setDisable(false);
+                if (err != null || opt.isEmpty() || opt.get().getName() == null || opt.get().getName().isBlank()) {
+                    // 回滚 CSV
+                    CSVConfig.removeStock(market, code);
+                    waiting.setContentText("抱歉，没有找到" + code + "这只股票的有效行情（可能代码错误/无数据/停牌）。");
+                    return;
+                }
+
+                // 校验通过：更新表格（立即展示这条）
+                StockRow row = opt.get();
+                String key = row.getMarketCode() + "_" + row.getRawCode();
+                StockRow existed = rowByKey.get(key);
+                if (existed == null) {
+                    row.setIndex(data.size() + 1);
+                    rowByKey.put(key, row);
+                    data.add(row);
+                } else {
+                    existed.setName(row.getName());
+                    existed.setPrice(row.getPrice());
+                    existed.setChangeRate(row.getChangeRate());
+                    existed.setChangeRateStr(row.getChangeRateStr());
+                    existed.setChangeAmt(row.getChangeAmt());
+                }
+                waiting.setContentText("添加成功："
+                        + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName());
+            }));
+        });
+
+
     }
 
     /**
