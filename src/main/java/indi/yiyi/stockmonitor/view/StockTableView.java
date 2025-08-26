@@ -87,7 +87,7 @@ public class StockTableView extends TableView<StockRow> {
             row.emptyProperty().addListener((obs, wasEmpty, isEmpty) -> applyPseudo(row));
 
             MenuItem del = new MenuItem("删除");
-            MenuItem addToGroup = new MenuItem("添加到分组");
+            MenuItem addToGroup = new MenuItem("修改分组");
             ContextMenu cm = new ContextMenu(addToGroup, del);
 
             // 仅在行非空时显示
