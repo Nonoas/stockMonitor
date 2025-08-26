@@ -28,6 +28,7 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.net.URI;
@@ -52,6 +53,7 @@ import java.util.concurrent.TimeUnit;
  * @since
  */
 public class MainStage extends AppStage {
+    private final TabPane tabPane = new TabPane();
     private final StockTableView table = new StockTableView();
     private ScheduledExecutorService scheduler;
 
@@ -79,21 +81,10 @@ public class MainStage extends AppStage {
         setMinWidth(500);
         setMinHeight(200);
 
-        MenuItem mi = new MenuItem("点我看看");
-        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
-
-        MenuItem addItem = new MenuItem("添加股票…");
-        addItem.setOnAction(e -> showAddStockDialog(stage));
-
-
-        Menu menu = new Menu("菜单", null, addItem, mi);
-
-        MenuBar menuBar = new MenuBar(menu);
-        menuBar.setPadding(new Insets(5, 10, 5, 10));
+        MenuBar menuBar = getMenuBar();
 
         registryDragger(menuBar);
 
-        TabPane tabPane = new TabPane();
         tabPane.setSide(Side.BOTTOM);
         StackPane stackPane = new StackPane(table);
         stackPane.setPadding(new Insets(10));
@@ -128,6 +119,25 @@ public class MainStage extends AppStage {
             if (scheduler != null) scheduler.shutdownNow();
             Platform.exit();
         });
+    }
+
+    @NotNull
+    private MenuBar getMenuBar() {
+        MenuItem mi = new MenuItem("点我看看");
+        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
+
+        MenuItem addItem = new MenuItem("添加股票");
+        addItem.setOnAction(e -> showAddStockDialog(stage));
+
+        MenuItem addGroupItem = new MenuItem("添加分组");
+        addGroupItem.setOnAction(e -> tabPane.getTabs().add(new Tab("新分组")));
+
+        Menu menu = new Menu("菜单", null, addItem, addGroupItem);
+        Menu menuClickMe = new Menu("点我看看", null, new Menu("再点试试", null, new Menu("再点一下", null, new Menu("最后一下", null, mi))));
+
+        MenuBar menuBar = new MenuBar(menu, menuClickMe);
+        menuBar.setPadding(new Insets(5, 10, 5, 10));
+        return menuBar;
     }
 
 
