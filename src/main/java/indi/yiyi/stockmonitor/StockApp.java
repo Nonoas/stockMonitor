@@ -10,6 +10,7 @@ public class StockApp extends Application {
     public void start(Stage stage) {
         setUserAgentStylesheet(new LightTheme().getUserAgentStylesheet());
         MainStage mainStage = new MainStage();
+        AppContext.setMainStage(mainStage.getStage());
         mainStage.show();
     }
 }

@@ -9,36 +9,25 @@ import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
 import indi.yiyi.stockmonitor.view.PlayfulHelper;
 import indi.yiyi.stockmonitor.view.StockSearchDialog;
+import indi.yiyi.stockmonitor.view.StockTableView;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 
 import java.io.IOException;
 import java.net.URI;
@@ -47,7 +36,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,13 +52,8 @@ import java.util.concurrent.TimeUnit;
  * @since
  */
 public class MainStage extends AppStage {
-    private final TableView<StockRow> table = new TableView<>();
-    private final ObservableList<StockRow> data = FXCollections.observableArrayList();
-    private final Map<String, StockRow> rowByKey = new ConcurrentHashMap<>();
+    private final StockTableView table = new StockTableView();
     private ScheduledExecutorService scheduler;
-
-    private static final PseudoClass UP = PseudoClass.getPseudoClass("up");
-    private static final PseudoClass DOWN = PseudoClass.getPseudoClass("down");
 
 
     private final Map<String, String> marketDict = Map.of(
@@ -96,95 +79,6 @@ public class MainStage extends AppStage {
         setMinWidth(500);
         setMinHeight(200);
 
-        // 表格列
-        TableColumn<StockRow, Number> colIndex = new TableColumn<>("序号");
-        colIndex.setPrefWidth(60);
-        colIndex.setCellValueFactory(c -> c.getValue().indexProperty());
-
-        TableColumn<StockRow, String> colCode = new TableColumn<>("股票代码");
-        colCode.setPrefWidth(120);
-        colCode.setCellValueFactory(c -> c.getValue().codeProperty());
-
-        TableColumn<StockRow, String> colName = new TableColumn<>("股票名称");
-        colName.setPrefWidth(140);
-        colName.setCellValueFactory(c -> c.getValue().nameProperty());
-
-        TableColumn<StockRow, Number> colChangeRate = new TableColumn<>("涨跌幅");
-        colChangeRate.setPrefWidth(100);
-        colChangeRate.setCellValueFactory(c -> c.getValue().changeRateProperty());
-        colChangeRate.setComparator(Comparator.comparingDouble(n -> n == null ? 0.0 : n.doubleValue()));
-        // 显示成百分比文本
-        colChangeRate.setCellFactory(percentCell(2));
-
-        TableColumn<StockRow, Number> colPrice = new TableColumn<>("当前股价");
-        colPrice.setPrefWidth(120);
-        colPrice.setCellValueFactory(c -> c.getValue().priceProperty());
-        colPrice.setCellFactory(formatNumber(3));
-
-        TableColumn<StockRow, Number> colChangeAmt = new TableColumn<>("当日涨跌");
-        colChangeAmt.setPrefWidth(120);
-        colChangeAmt.setCellValueFactory(c -> c.getValue().changeAmtProperty());
-        colChangeAmt.setCellFactory(formatNumber(3));
-
-        table.getColumns().addAll(colIndex, colCode, colName, colChangeRate, colPrice, colChangeAmt);
-        table.setItems(data);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-
-        // 行颜色：涨红、跌绿、平默认
-        table.setRowFactory(tv -> {
-            TableRow<StockRow> row = new TableRow<>();
-
-            ChangeListener<Number> amtListener = (obs, ov, nv) -> applyPseudo(row);
-
-            row.itemProperty().addListener((obs, oldItem, newItem) -> {
-                if (oldItem != null) {
-                    oldItem.changeAmtProperty().removeListener(amtListener);
-                }
-                if (newItem != null) {
-                    newItem.changeAmtProperty().addListener(amtListener);
-                }
-                applyPseudo(row);
-            });
-
-            row.emptyProperty().addListener((obs, wasEmpty, isEmpty) -> applyPseudo(row));
-
-            MenuItem del = new MenuItem("删除");
-            ContextMenu cm = new ContextMenu(del);
-
-            // 仅在行非空时显示
-            row.contextMenuProperty().bind(
-                    javafx.beans.binding.Bindings.when(row.emptyProperty())
-                            .then((ContextMenu) null)
-                            .otherwise(cm)
-            );
-
-            del.setOnAction(evt -> {
-                StockRow item = row.getItem();
-                if (item == null) return;
-
-                var r = FXAlert.confirm(stage, "确认删除", "确定要删除 " + item.getCode() + "（" + item.getName() + "）吗？");
-                if (r.isEmpty() || r.get() != ButtonType.OK) return;
-
-                // 1) 从 CSV 移除
-                boolean ok = CSVConfig.removeStock(item.getMarketCode(), item.getRawCode());
-                if (!ok) {
-                    new Alert(Alert.AlertType.ERROR, "从 CSV 移除失败，可能该条目不存在。").showAndWait();
-                    return;
-                }
-
-                // 2) 从表格移除
-                String key = item.getMarketCode() + "_" + item.getRawCode();
-                rowByKey.remove(key);
-                data.remove(item);
-
-                // 3) 重新编号（可选）
-                for (int i = 0; i < data.size(); i++) {
-                    data.get(i).setIndex(i + 1);
-                }
-            });
-            return row;
-        });
-
         MenuItem mi = new MenuItem("点我看看");
         mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
 
@@ -199,12 +93,17 @@ public class MainStage extends AppStage {
 
         registryDragger(menuBar);
 
+        TabPane tabPane = new TabPane();
+        tabPane.setSide(Side.BOTTOM);
         StackPane stackPane = new StackPane(table);
         stackPane.setPadding(new Insets(10));
 
-        BorderPane root = new BorderPane(stackPane);
-        root.setTop(menuBar);
+        Tab tab = new Tab("全部", stackPane);
+        tab.setClosable(false);
+        tabPane.getTabs().add(tab);
 
+        BorderPane root = new BorderPane(tabPane);
+        root.setTop(menuBar);
         setContentView(root);
 
         // 创建按钮
@@ -232,20 +131,6 @@ public class MainStage extends AppStage {
     }
 
 
-    private Callback<TableColumn<StockRow, Number>, TableCell<StockRow, Number>> formatNumber(int scale) {
-        return col -> new TableCell<>() {
-            @Override
-            protected void updateItem(Number value, boolean empty) {
-                super.updateItem(value, empty);
-                if (empty || value == null) {
-                    setText(null);
-                } else {
-                    setText(String.format(Locale.CHINA, "%." + scale + "f", value.doubleValue()));
-                }
-            }
-        };
-    }
-
     private void fetchAndUpdate() {
         try {
             // 读取配置（与 Python 的 cfg.__get_config__() 对应）
@@ -270,11 +155,11 @@ public class MainStage extends AppStage {
                     row.setIndex(idx); // 序号
                     String key = row.getMarketCode() + "_" + row.getRawCode(); // 与 Python 的 key 对应
 
-                    if (!rowByKey.containsKey(key)) {
-                        rowByKey.put(key, row);
-                        data.add(row);
+                    if (!table.getRowByKey().containsKey(key)) {
+                        table.getRowByKey().put(key, row);
+                        table.getItems().add(row);
                     } else {
-                        StockRow existed = rowByKey.get(key);
+                        StockRow existed = table.getRowByKey().get(key);
                         existed.setIndex(idx);
                         existed.setName(row.getName());
                         existed.setPrice(row.getPrice());
@@ -289,18 +174,6 @@ public class MainStage extends AppStage {
             // 静默失败或打印到控制台即可
             System.err.println("fetch error: " + e.getMessage());
         }
-    }
-
-    private void applyPseudo(TableRow<StockRow> row) {
-        StockRow item = row.getItem();
-        boolean up = false, down = false;
-        if (item != null && !row.isEmpty()) {
-            double v = item.getChangeAmt();
-            up = v > 0;
-            down = v < 0;
-        }
-        row.pseudoClassStateChanged(UP, up);
-        row.pseudoClassStateChanged(DOWN, down);
     }
 
     /**
@@ -364,20 +237,6 @@ public class MainStage extends AppStage {
         }
     }
 
-    // 定义一个百分比单元格工厂
-    private static Callback<TableColumn<StockRow, Number>, TableCell<StockRow, Number>> percentCell(int scale) {
-        return col -> new TableCell<>() {
-            @Override
-            protected void updateItem(Number v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty || v == null) {
-                    setText(null);
-                } else {
-                    setText(String.format(Locale.CHINA, "%." + scale + "f%%", v.doubleValue() * 100));
-                }
-            }
-        };
-    }
 
     private void showAddStockDialog(Stage owner) {
         StockSearchDialog dialog = new StockSearchDialog();
@@ -426,11 +285,11 @@ public class MainStage extends AppStage {
                 // 校验通过：更新表格（立即展示这条）
                 StockRow row = opt.get();
                 String key = row.getMarketCode() + "_" + row.getRawCode();
-                StockRow existed = rowByKey.get(key);
+                StockRow existed = table.getRowByKey().get(key);
                 if (existed == null) {
-                    row.setIndex(data.size() + 1);
-                    rowByKey.put(key, row);
-                    data.add(row);
+                    row.setIndex(table.getItems().size() + 1);
+                    table.getRowByKey().put(key, row);
+                    table.getItems().add(row);
                 } else {
                     existed.setName(row.getName());
                     existed.setPrice(row.getPrice());
