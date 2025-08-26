@@ -1,6 +1,8 @@
 package indi.yiyi.stockmonitor;
 
 
+import indi.yiyi.stockmonitor.data.Stock;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -16,11 +18,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class CSVConfig {
 
-    public record Stock(String marketCode, String stockCode) {
-        public String key() {
-            return marketCode + "_" + stockCode;
-        }
-    }
+
 
     private static final Path CSV_PATH = Path.of("stocks.csv"); // 与软件同级目录
     private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
@@ -122,7 +120,7 @@ public class CSVConfig {
                 StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
             bw.write("# market_code,stock_code\n");
             for (Stock s : CACHE.values()) {
-                bw.write(s.marketCode + "," + s.stockCode);
+                bw.write(s.marketCode() + "," + s.stockCode());
                 bw.write("\n");
             }
         } catch (IOException e) {

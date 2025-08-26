@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import github.nonoas.jfx.flat.ui.control.UIFactory;
 import github.nonoas.jfx.flat.ui.stage.AppStage;
+import indi.yiyi.stockmonitor.data.Stock;
+import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
+import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
 import indi.yiyi.stockmonitor.view.PlayfulHelper;
@@ -17,12 +20,13 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableView;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
@@ -56,6 +60,7 @@ public class MainStage extends AppStage {
     private final TabPane tabPane = new TabPane();
     private final StockTableView table = new StockTableView();
     private ScheduledExecutorService scheduler;
+    private final Map<String, StockGroup> groups = new ConcurrentHashMap<>();
 
 
     private final Map<String, String> marketDict = Map.of(
@@ -89,9 +94,8 @@ public class MainStage extends AppStage {
         StackPane stackPane = new StackPane(table);
         stackPane.setPadding(new Insets(10));
 
-        Tab tab = new Tab("全部", stackPane);
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
+        // 加载分组中的股票
+        initGroups();
 
         BorderPane root = new BorderPane(tabPane);
         root.setTop(menuBar);
@@ -104,7 +108,6 @@ public class MainStage extends AppStage {
 
         // 添加到 systemButtons 的开头
         getSystemButtons().addAll(0, List.of(pinButton));
-
 
         // 启动定时抓取
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -130,7 +133,32 @@ public class MainStage extends AppStage {
         addItem.setOnAction(e -> showAddStockDialog(stage));
 
         MenuItem addGroupItem = new MenuItem("添加分组");
-        addGroupItem.setOnAction(e -> tabPane.getTabs().add(new Tab("新分组")));
+        addGroupItem.setOnAction(e -> {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("添加分组");
+            dialog.setHeaderText("请输入新分组名称");
+            dialog.setContentText("分组名称:");
+            dialog.initOwner(stage);
+
+            Optional<String> result = dialog.showAndWait();
+            result.ifPresent(name -> {
+                String groupName = name.trim();
+                if (groupName.isEmpty()) {
+                    FXAlert.info(stage, "输入无效", "分组名称不能为空！");
+                    return;
+                }
+
+                // 添加到配置并检查是否已存在
+                if (!GroupConfig.addGroup(groupName)) {
+                    FXAlert.info(stage, "添加失败", "分组【" + groupName + "】已存在！");
+                    return;
+                }
+
+                // 界面新增 Tab
+                addGroupTab(groupName);
+            });
+        });
+
 
         Menu menu = new Menu("菜单", null, addItem, addGroupItem);
         Menu menuClickMe = new Menu("点我看看", null, new Menu("再点试试", null, new Menu("再点一下", null, new Menu("最后一下", null, mi))));
@@ -140,13 +168,54 @@ public class MainStage extends AppStage {
         return menuBar;
     }
 
+    private void initGroups() {
+        addGroupTab("全部");
+        for (GroupConfig.Group g : GroupConfig.getGroups()) {
+            addGroupTab(g.getName());
+        }
+    }
+
+    private void addGroupTab(String groupName) {
+        StockGroup group = new StockGroup(groupName);
+        groups.put(groupName, group);
+
+        StackPane stackPane = new StackPane(group.getTableView());
+        stackPane.setPadding(new Insets(10));
+        Tab tab = new Tab(groupName, stackPane);
+        // 右键菜单：删除分组
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem deleteItem = new MenuItem("删除分组");
+        deleteItem.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    "确认删除分组【" + groupName + "】吗？\n删除后无法恢复！",
+                    ButtonType.YES, ButtonType.NO);
+            confirm.initOwner(stage);
+            confirm.showAndWait().ifPresent(btn -> {
+                if (btn == ButtonType.YES) {
+                    // 删除数据
+                    GroupConfig.removeGroup(groupName);
+                    // 删除 UI
+                    tabPane.getTabs().remove(tab);
+                    groups.remove(groupName);
+                }
+            });
+        });
+        contextMenu.getItems().add(deleteItem);
+        tab.setContextMenu(contextMenu);
+        tab.setClosable(false);
+        tabPane.getTabs().add(tab);
+    }
 
     private void fetchAndUpdate() {
         try {
-            // 读取配置（与 Python 的 cfg.__get_config__() 对应）
-            List<CSVConfig.Stock> stocks = CSVConfig.getConfig(); // market_code, stock_code
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            if (selected == null) return;
 
-            // 并发抓取
+            String groupName = selected.getText();
+            StockGroup group = groups.get(groupName);
+            if (group == null) return;
+
+            List<Stock> stocks = GroupConfig.getStocksOf(groupName);
             List<CompletableFuture<Optional<StockRow>>> futures = stocks.stream()
                     .map(s -> CompletableFuture.supplyAsync(() -> getSocketData(s.marketCode(), s.stockCode())))
                     .toList();
@@ -155,16 +224,15 @@ public class MainStage extends AppStage {
                     .map(CompletableFuture::join)
                     .toList();
 
-            // 汇总并更新 UI
             Platform.runLater(() -> {
+                StockTableView table = group.getTableView();
                 int idx = 0;
                 for (Optional<StockRow> opt : results) {
                     if (opt.isEmpty()) continue;
                     StockRow row = opt.get();
                     idx++;
-                    row.setIndex(idx); // 序号
-                    String key = row.getMarketCode() + "_" + row.getRawCode(); // 与 Python 的 key 对应
-
+                    row.setIndex(idx);
+                    String key = row.getMarketCode() + "_" + row.getRawCode();
                     if (!table.getRowByKey().containsKey(key)) {
                         table.getRowByKey().put(key, row);
                         table.getItems().add(row);
@@ -181,10 +249,10 @@ public class MainStage extends AppStage {
             });
 
         } catch (Exception e) {
-            // 静默失败或打印到控制台即可
             System.err.println("fetch error: " + e.getMessage());
         }
     }
+
 
     /**
      * 拉取单只股票数据并计算涨跌幅/额

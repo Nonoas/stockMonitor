@@ -3,24 +3,35 @@ package indi.yiyi.stockmonitor.view;
 import indi.yiyi.stockmonitor.AppContext;
 import indi.yiyi.stockmonitor.CSVConfig;
 import indi.yiyi.stockmonitor.data.StockRow;
+import indi.yiyi.stockmonitor.utils.GroupConfig;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
+import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
 import javafx.util.Callback;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 
 /**
@@ -121,9 +132,77 @@ public class StockTableView extends TableView<StockRow> {
                     getItems().get(i).setIndex(i + 1);
                 }
             });
+
+            addToGroup.setOnAction(e -> {
+                StockRow stock = row.getItem();
+                if (stock != null) {
+                    showModifyGroupDialog(stock);
+                }
+            });
             return row;
         });
     }
+
+    private void showModifyGroupDialog(StockRow stock) {
+        // 取出所有分组
+        List<GroupConfig.Group> allGroups = GroupConfig.getGroups();
+
+        // 当前在哪些分组里
+        Set<String> currentGroups = allGroups.stream()
+                .filter(g -> g.getStocks().stream()
+                        .anyMatch(s -> s.marketCode().equals(stock.getMarketCode())
+                                && s.stockCode().equals(stock.getRawCode())))
+                .map(GroupConfig.Group::getName)
+                .collect(Collectors.toSet());
+
+        Dialog<List<String>> dialog = new Dialog<>();
+        dialog.setTitle("修改分组");
+        dialog.setHeaderText("请选择股票【" + stock.getCode() + " - " + stock.getName() + "】所在的分组");
+        dialog.initOwner(AppContext.getMainStage());
+
+        ButtonType okButtonType = new ButtonType("确定", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(okButtonType, ButtonType.CANCEL);
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(10));
+
+        Map<String, CheckBox> checkBoxMap = new LinkedHashMap<>();
+        for (GroupConfig.Group g : allGroups) {
+            CheckBox cb = new CheckBox(g.getName());
+            cb.setSelected(currentGroups.contains(g.getName()));
+            checkBoxMap.put(g.getName(), cb);
+            box.getChildren().add(cb);
+        }
+
+        dialog.getDialogPane().setContent(box);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == okButtonType) {
+                return checkBoxMap.entrySet().stream()
+                        .filter(e -> e.getValue().isSelected())
+                        .map(Map.Entry::getKey)
+                        .toList();
+            }
+            return null;
+        });
+
+        Optional<List<String>> result = dialog.showAndWait();
+        result.ifPresent(selectedGroups -> {
+            // 先从所有分组移除该股票
+            for (GroupConfig.Group g : allGroups) {
+                GroupConfig.removeStock(g.getName(), stock.getMarketCode(), stock.getRawCode());
+            }
+
+            // 再加入勾选的分组
+            for (String gName : selectedGroups) {
+                GroupConfig.addStock(gName, stock.getMarketCode(), stock.getRawCode());
+            }
+
+            // 刷新持久化文件
+            GroupConfig.save();
+        });
+    }
+
 
     // 定义一个百分比单元格工厂
     private static Callback<TableColumn<StockRow, Number>, TableCell<StockRow, Number>> percentCell(int scale) {

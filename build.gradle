@@ -61,7 +61,7 @@ dependencies {
     implementation "org.openjfx:javafx-controls:${versions.jfx}"
     implementation 'org.apache.httpcomponents:httpclient:4.5.14'
     implementation 'org.apache.commons:commons-text:1.10.0'
-
+    implementation 'com.google.code.gson:gson:2.8.9'
 
     implementation 'org.slf4j:slf4j-api:2.0.9'
     // https://mvnrepository.com/artifact/org.yaml/snakeyaml
