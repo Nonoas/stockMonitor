@@ -2,6 +2,7 @@ package indi.yiyi.stockmonitor.view;
 
 import indi.yiyi.stockmonitor.AppContext;
 import indi.yiyi.stockmonitor.CSVConfig;
+import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import javafx.beans.value.ChangeListener;
@@ -45,9 +46,14 @@ public class StockTableView extends TableView<StockRow> {
     private static final PseudoClass UP = PseudoClass.getPseudoClass("up");
     private static final PseudoClass DOWN = PseudoClass.getPseudoClass("down");
 
-    public StockTableView() {
+    private StockGroup stockGroup;
+
+    public StockTableView(StockGroup stockGroup) {
+        this.stockGroup = stockGroup;
+
         TableColumn<StockRow, Number> colIndex = new TableColumn<>("序号");
-        colIndex.setPrefWidth(60);
+        colIndex.setPrefWidth(40);
+        colIndex.setMinWidth(40);
         colIndex.setCellValueFactory(c -> c.getValue().indexProperty());
 
         TableColumn<StockRow, String> colCode = new TableColumn<>("股票代码");
@@ -115,9 +121,8 @@ public class StockTableView extends TableView<StockRow> {
                 var r = FXAlert.confirm(AppContext.getMainStage(), "确认删除", "确定要删除 " + item.getCode() + "（" + item.getName() + "）吗？");
                 if (r.isEmpty() || r.get() != ButtonType.OK) return;
 
-                // 1) 从 CSV 移除
-                boolean ok = CSVConfig.removeStock(item.getMarketCode(), item.getRawCode());
-                if (!ok) {
+                boolean removeStock = GroupConfig.removeStock(stockGroup.getName(), item.getMarketCode(), item.getRawCode());
+                if (!removeStock) {
                     new Alert(Alert.AlertType.ERROR, "从 CSV 移除失败，可能该条目不存在。").showAndWait();
                     return;
                 }

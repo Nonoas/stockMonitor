@@ -2,16 +2,18 @@ package indi.yiyi.stockmonitor.utils;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import indi.yiyi.stockmonitor.CSVConfig;
 import indi.yiyi.stockmonitor.data.Stock;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 分组持久化配置管理
@@ -36,10 +38,12 @@ import java.util.*;
  */
 public class GroupConfig {
 
+    public static final Logger LOG = LogManager.getLogger(GroupConfig.class);
+
     private static final ObjectMapper mapper = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
-    private static final Path DATA_DIR = Path.of("data");
+    private static final Path DATA_DIR = Path.of(System.getProperty("user.home"), ".stockMonitor");
     private static final Path CONFIG_FILE = DATA_DIR.resolve("groups.json");
 
 
@@ -105,8 +109,12 @@ public class GroupConfig {
             } else {
                 rootCache = mapper.readValue(CONFIG_FILE.toFile(), Root.class);
             }
+            if (rootCache.groups.isEmpty()) {
+                rootCache.groups = List.of(new Group("自选"));
+                save();
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
             rootCache = new Root();
         }
     }
@@ -117,9 +125,9 @@ public class GroupConfig {
     public static synchronized void save() {
         try {
             Files.createDirectories(DATA_DIR);
-            mapper.writerWithDefaultPrettyPrinter().writeValue(CONFIG_FILE.toFile(), rootCache);
+            mapper.writeValue(CONFIG_FILE.toFile(), rootCache);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
         }
     }
 

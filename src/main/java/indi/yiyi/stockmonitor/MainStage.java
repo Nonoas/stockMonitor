@@ -12,8 +12,11 @@ import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
 import indi.yiyi.stockmonitor.view.PlayfulHelper;
 import indi.yiyi.stockmonitor.view.StockSearchDialog;
+import indi.yiyi.stockmonitor.view.StockTab;
 import indi.yiyi.stockmonitor.view.StockTableView;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -30,8 +33,9 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -57,9 +61,9 @@ import java.util.concurrent.TimeUnit;
  * @since
  */
 public class MainStage extends AppStage {
+    private static final Logger LOG = LogManager.getLogger(MainStage.class);
     private final TabPane tabPane = new TabPane();
-    private final StockTableView table = new StockTableView();
-    private ScheduledExecutorService scheduler;
+    private final ScheduledExecutorService scheduler;
     private final Map<String, StockGroup> groups = new ConcurrentHashMap<>();
 
 
@@ -75,7 +79,6 @@ public class MainStage extends AppStage {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Stage stage = getStage();
 
-    @SuppressWarnings("unchecked")
     public MainStage() {
         setTitle("盯盘小助手");
         addIcons(Collections.singleton(new Image("image/logo.png")));
@@ -83,7 +86,7 @@ public class MainStage extends AppStage {
 
         stage.setWidth(500);
         stage.setHeight(420);
-        setMinWidth(500);
+        setMinWidth(420);
         setMinHeight(200);
 
         MenuBar menuBar = getMenuBar();
@@ -91,8 +94,14 @@ public class MainStage extends AppStage {
         registryDragger(menuBar);
 
         tabPane.setSide(Side.BOTTOM);
-        StackPane stackPane = new StackPane(table);
-        stackPane.setPadding(new Insets(10));
+        tabPane.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<>() {
+            @Override
+            public void changed(ObservableValue<? extends Tab> observable, Tab oldValue, Tab newValue) {
+                if (newValue != null && scheduler != null) {
+                    fetchAndUpdate();
+                }
+            }
+        });
 
         // 加载分组中的股票
         initGroups();
@@ -105,7 +114,6 @@ public class MainStage extends AppStage {
         Button pinButton = UIFactory.createPinButton(stage);
         // 安装提示
         Tooltip.install(pinButton, new Tooltip("窗口置顶"));
-
         // 添加到 systemButtons 的开头
         getSystemButtons().addAll(0, List.of(pinButton));
 
@@ -119,7 +127,7 @@ public class MainStage extends AppStage {
 
         // 关闭时停止后台任务
         stage.setOnCloseRequest(ev -> {
-            if (scheduler != null) scheduler.shutdownNow();
+            scheduler.shutdownNow();
             Platform.exit();
         });
     }
@@ -140,28 +148,27 @@ public class MainStage extends AppStage {
             dialog.setContentText("分组名称:");
             dialog.initOwner(stage);
 
-            Optional<String> result = dialog.showAndWait();
-            result.ifPresent(name -> {
+            dialog.showAndWait().ifPresent(name -> {
                 String groupName = name.trim();
                 if (groupName.isEmpty()) {
                     FXAlert.info(stage, "输入无效", "分组名称不能为空！");
                     return;
                 }
-
                 // 添加到配置并检查是否已存在
                 if (!GroupConfig.addGroup(groupName)) {
                     FXAlert.info(stage, "添加失败", "分组【" + groupName + "】已存在！");
                     return;
                 }
-
                 // 界面新增 Tab
                 addGroupTab(groupName);
             });
         });
 
-
         Menu menu = new Menu("菜单", null, addItem, addGroupItem);
-        Menu menuClickMe = new Menu("点我看看", null, new Menu("再点试试", null, new Menu("再点一下", null, new Menu("最后一下", null, mi))));
+        Menu menuClickMe = new Menu("点我看看", null,
+                new Menu("再点试试", null,
+                        new Menu("再点一下", null,
+                                new Menu("最后一下", null, mi))));
 
         MenuBar menuBar = new MenuBar(menu, menuClickMe);
         menuBar.setPadding(new Insets(5, 10, 5, 10));
@@ -169,7 +176,6 @@ public class MainStage extends AppStage {
     }
 
     private void initGroups() {
-        addGroupTab("全部");
         for (GroupConfig.Group g : GroupConfig.getGroups()) {
             addGroupTab(g.getName());
         }
@@ -179,9 +185,7 @@ public class MainStage extends AppStage {
         StockGroup group = new StockGroup(groupName);
         groups.put(groupName, group);
 
-        StackPane stackPane = new StackPane(group.getTableView());
-        stackPane.setPadding(new Insets(10));
-        Tab tab = new Tab(groupName, stackPane);
+        Tab tab = new StockTab(group);
         // 右键菜单：删除分组
         ContextMenu contextMenu = new ContextMenu();
         MenuItem deleteItem = new MenuItem("删除分组");
@@ -247,9 +251,8 @@ public class MainStage extends AppStage {
                     }
                 }
             });
-
         } catch (Exception e) {
-            System.err.println("fetch error: " + e.getMessage());
+            LOG.error("fetch error: " + e.getMessage());
         }
     }
 
@@ -336,7 +339,7 @@ public class MainStage extends AppStage {
             String code = codeVar;
 
             // === 先查重 ===
-            if (!CSVConfig.addStock(market, code)) {
+            if (!GroupConfig.addStock(getCurrGroup().getName(), market, code)) {
                 // addStock 内部去重：如果已存在则不写盘并返回 false
                 new Alert(Alert.AlertType.INFORMATION, "这只股票已经在列表里啦～").showAndWait();
                 return;
@@ -359,7 +362,7 @@ public class MainStage extends AppStage {
                     waiting.setContentText("抱歉，没有找到" + code + "这只股票的有效行情（可能代码错误/无数据/停牌）。");
                     return;
                 }
-
+                StockTableView table = getCurrGroup().getTableView();
                 // 校验通过：更新表格（立即展示这条）
                 StockRow row = opt.get();
                 String key = row.getMarketCode() + "_" + row.getRawCode();
@@ -381,6 +384,11 @@ public class MainStage extends AppStage {
         });
 
 
+    }
+
+    private StockGroup getCurrGroup() {
+        StockTab selectedItem = (StockTab) tabPane.getSelectionModel().getSelectedItem();
+        return selectedItem.getStockGroup();
     }
 
     /**

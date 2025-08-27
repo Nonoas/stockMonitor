@@ -13,7 +13,7 @@ public class StockGroup {
 
     public StockGroup(String name) {
         this.name = name;
-        this.tableView = new StockTableView();
+        this.tableView = new StockTableView(this);
     }
 
     public String getName() { return name; }
