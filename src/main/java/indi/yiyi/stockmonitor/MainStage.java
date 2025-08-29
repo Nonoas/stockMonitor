@@ -43,7 +43,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -73,7 +72,7 @@ public class MainStage extends AppStage {
     );
 
     private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(8))
+            .connectTimeout(java.time.Duration.ofSeconds(8))
             .build();
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -190,24 +189,27 @@ public class MainStage extends AppStage {
         ContextMenu contextMenu = new ContextMenu();
         MenuItem deleteItem = new MenuItem("删除分组");
         deleteItem.setOnAction(e -> {
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                    "确认删除分组【" + groupName + "】吗？\n删除后无法恢复！",
-                    ButtonType.YES, ButtonType.NO);
-            confirm.initOwner(stage);
-            confirm.showAndWait().ifPresent(btn -> {
-                if (btn == ButtonType.YES) {
-                    // 删除数据
-                    GroupConfig.removeGroup(groupName);
-                    // 删除 UI
-                    tabPane.getTabs().remove(tab);
-                    groups.remove(groupName);
-                }
-            });
+            if (tabPane.getTabs().size() == 1) {
+                FXAlert.info(stage, "删除分组", "无法删除唯一的分组");
+                return;
+            }
+            FXAlert.confirm(stage, "删除分组", "确认删除分组【" + groupName + "】吗？\n删除后无法恢复！")
+                    .ifPresent(btn -> {
+                        if (btn == ButtonType.OK) {
+                            // 删除数据
+                            GroupConfig.removeGroup(groupName);
+                            // 删除 UI
+                            tabPane.getTabs().remove(tab);
+                            groups.remove(groupName);
+                        }
+                    });
         });
         contextMenu.getItems().add(deleteItem);
         tab.setContextMenu(contextMenu);
         tab.setClosable(false);
         tabPane.getTabs().add(tab);
+
+        tabPane.getSelectionModel().select(tab);
     }
 
     private void fetchAndUpdate() {
@@ -268,7 +270,7 @@ public class MainStage extends AppStage {
                     + "&fields2=f51,f52,f53,f54,f55,f56,f57,f58";
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(8))
+                    .timeout(java.time.Duration.ofSeconds(8))
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
                     .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
                     .GET()

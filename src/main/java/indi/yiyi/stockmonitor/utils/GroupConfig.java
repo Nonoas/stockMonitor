@@ -110,7 +110,7 @@ public class GroupConfig {
                 rootCache = mapper.readValue(CONFIG_FILE.toFile(), Root.class);
             }
             if (rootCache.groups.isEmpty()) {
-                rootCache.groups = List.of(new Group("自选"));
+                rootCache.groups.add(new Group("自选"));
                 save();
             }
         } catch (IOException e) {

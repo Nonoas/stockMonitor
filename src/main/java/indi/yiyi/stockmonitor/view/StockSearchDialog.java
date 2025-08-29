@@ -78,6 +78,7 @@ public class StockSearchDialog extends Dialog<StockerSuggestion> {
                 close();
             }
         });
+        listView.setPlaceholder(new Label("在上方输入股票代码或名称，双击确认选择"));
 
         // Dialog 按钮
         getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL);
@@ -90,6 +91,9 @@ public class StockSearchDialog extends Dialog<StockerSuggestion> {
             }
             return getResult(); // 双击时已通过 setResult 设置
         });
+
+        // ✅ 自动把焦点放到输入框
+        Platform.runLater(textField::requestFocus);
     }
 
     private void doSearch() {
