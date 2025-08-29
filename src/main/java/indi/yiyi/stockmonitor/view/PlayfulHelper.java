@@ -6,6 +6,7 @@ package indi.yiyi.stockmonitor.view;
  * @since
  */
 
+import github.nonoas.jfx.flat.ui.stage.ToastQueue;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
@@ -17,7 +18,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
@@ -212,7 +212,7 @@ public class PlayfulHelper {
             if (yes) low = mid + 1;
             else high = mid;
             steps++;
-            playfulToast(owner, sweetLine(steps));
+            ToastQueue.show(owner, sweetLine(steps), 1000);;
         }
 
         int answer = low;
@@ -270,43 +270,4 @@ public class PlayfulHelper {
             default -> "冲鸭～冲向答案！";
         };
     }
-
-    // 轻量小提示（非阻塞）
-    private static void playfulToast(Stage owner, String text) {
-        Stage toast = new Stage(StageStyle.TRANSPARENT);
-        toast.initOwner(owner);
-        toast.setAlwaysOnTop(true);
-
-        Label l = new Label(text);
-        l.setStyle(
-                "-fx-background-color: rgba(0,0,0,0.75);" +
-                        "-fx-text-fill: white;" +
-                        "-fx-padding: 8 12;" +
-                        "-fx-background-radius: 9999;" +
-                        "-fx-font-size: 13px;"
-        );
-
-        HBox root = new HBox(l);
-        root.setStyle("-fx-background-color: transparent;"); // 关键：容器透明
-
-        Scene sc = new Scene(root);
-        sc.setFill(javafx.scene.paint.Color.TRANSPARENT);   // 关键：Scene透明
-        toast.setScene(sc);
-
-        Rectangle2D vb = Screen.getPrimary().getVisualBounds();
-        double x = vb.getMinX() + vb.getWidth() - 320;
-        double y = vb.getMinY() + vb.getHeight() - 120;
-        toast.setX(x);
-        toast.setY(y);
-        toast.show();
-
-        // 1.2 秒后自动消失
-        new Thread(() -> {
-            try {
-                Thread.sleep(1200);
-            } catch (InterruptedException ignored) {}
-            Platform.runLater(toast::close);
-        }, "toast-hide").start();
-    }
-
 }

@@ -1,7 +1,6 @@
 package indi.yiyi.stockmonitor.view;
 
 import indi.yiyi.stockmonitor.AppContext;
-import indi.yiyi.stockmonitor.CSVConfig;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
 import indi.yiyi.stockmonitor.utils.GroupConfig;

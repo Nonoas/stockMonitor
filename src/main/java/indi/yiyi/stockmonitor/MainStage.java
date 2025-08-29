@@ -2,8 +2,10 @@ package indi.yiyi.stockmonitor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import github.nonoas.jfx.flat.ui.concurrent.TaskHandler;
 import github.nonoas.jfx.flat.ui.control.UIFactory;
 import github.nonoas.jfx.flat.ui.stage.AppStage;
+import github.nonoas.jfx.flat.ui.stage.ToastQueue;
 import indi.yiyi.stockmonitor.data.Stock;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
@@ -65,7 +67,6 @@ public class MainStage extends AppStage {
     private final ScheduledExecutorService scheduler;
     private final Map<String, StockGroup> groups = new ConcurrentHashMap<>();
 
-
     private final Map<String, String> marketDict = Map.of(
             "0", "SZ",
             "1", "SH"
@@ -97,7 +98,7 @@ public class MainStage extends AppStage {
             @Override
             public void changed(ObservableValue<? extends Tab> observable, Tab oldValue, Tab newValue) {
                 if (newValue != null && scheduler != null) {
-                    fetchAndUpdate();
+                    TaskHandler.backRun(() -> fetchAndUpdate());
                 }
             }
         });
@@ -380,12 +381,12 @@ public class MainStage extends AppStage {
                     existed.setChangeRateStr(row.getChangeRateStr());
                     existed.setChangeAmt(row.getChangeAmt());
                 }
-                waiting.setContentText("添加成功："
-                        + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName());
+                waiting.close();
+                ToastQueue.show(stage, "添加成功1：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
+                ToastQueue.show(stage, "添加成功2：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
+                ToastQueue.show(stage, "添加成功3：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
             }));
         });
-
-
     }
 
     private StockGroup getCurrGroup() {
