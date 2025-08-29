@@ -382,9 +382,8 @@ public class MainStage extends AppStage {
                     existed.setChangeAmt(row.getChangeAmt());
                 }
                 waiting.close();
-                ToastQueue.show(stage, "添加成功1：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
-                ToastQueue.show(stage, "添加成功2：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
-                ToastQueue.show(stage, "添加成功3：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(), 2000);
+                ToastQueue.show(stage, "添加成功：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(),
+                        2000);
             }));
         });
     }
