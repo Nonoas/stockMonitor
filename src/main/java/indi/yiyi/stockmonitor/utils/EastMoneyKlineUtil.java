@@ -11,7 +11,9 @@ import org.apache.http.util.EntityUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class EastMoneyKlineUtil {
 
@@ -83,6 +85,53 @@ public class EastMoneyKlineUtil {
         return result;
     }
 
+    public static List<StockKline> calculateIndexKlines(
+            List<String> stockCodes, String beg, String end, int klt, int fqt) throws Exception {
+
+        // 保存每只股票的历史K线数据
+        Map<String, List<StockKline>> stockDataMap = new HashMap<>();
+        for (String code : stockCodes) {
+            List<StockKline> klines = getHistoryKlines(code, beg, end, klt, fqt);
+            stockDataMap.put(code, klines);
+        }
+
+        List<StockKline> indexKlines = new ArrayList<>();
+        if (stockDataMap.isEmpty()) return indexKlines;
+
+        // 假设所有股票的K线日期一致，这里用第一个股票的日期列表
+        List<StockKline> reference = stockDataMap.get(stockCodes.get(0));
+
+        for (int i = 0; i < reference.size(); i++) {
+            double openSum = 0;
+            double closeSum = 0;
+            double highSum = 0;
+            double lowSum = 0;
+
+            for (String code : stockCodes) {
+                StockKline kline = stockDataMap.get(code).get(i);
+                openSum += kline.open;
+                closeSum += kline.close;
+                highSum += kline.high;
+                lowSum += kline.low;
+            }
+
+            int n = stockCodes.size();
+            StockKline indexKline = new StockKline();
+            indexKline.date = reference.get(i).date;
+            indexKline.open = openSum / n;
+            indexKline.close = closeSum / n;
+            indexKline.high = highSum / n;
+            indexKline.low = lowSum / n;
+            indexKline.volume = 0;    // 指数成交量可根据需要计算
+            indexKline.turnover = 0;  // 指数成交额可根据需要计算
+
+            indexKlines.add(indexKline);
+        }
+
+        return indexKlines;
+    }
+
+
     /**
      * 数据结构：保存每根 K 线的完整信息
      */
@@ -107,11 +156,5 @@ public class EastMoneyKlineUtil {
                     ", turnover=" + turnover +
                     '}';
         }
-    }
-
-    // 简单测试
-    public static void main(String[] args) throws Exception {
-        List<StockKline> list = getHistoryKlines("0.000568", "20240101", "20250830", 101, 1);
-        list.forEach(System.out::println);
     }
 }

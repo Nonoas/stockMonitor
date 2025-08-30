@@ -9,6 +9,7 @@ import github.nonoas.jfx.flat.ui.stage.ToastQueue;
 import indi.yiyi.stockmonitor.data.Stock;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
+import indi.yiyi.stockmonitor.utils.EastMoneyKlineUtil;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
@@ -134,8 +135,6 @@ public class MainStage extends AppStage {
 
     @NotNull
     private MenuBar getMenuBar() {
-        MenuItem mi = new MenuItem("点我看看");
-        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
 
         MenuItem index = new MenuItem("查看指数");
         index.setOnAction(e -> {
@@ -143,11 +142,17 @@ public class MainStage extends AppStage {
                     .stream()
                     .map(stock -> stock.getMarketCode() + "." + stock.getRawCode())
                     .toList();
-
-            // 3️⃣ 创建指数 K 线图窗口
-            IndexKLineStage indexStage = null;
+            List<EastMoneyKlineUtil.StockKline> stockKlines;
             try {
-                indexStage = new IndexKLineStage("自定义指数 K 线图", stockCodes);
+              stockKlines = EastMoneyKlineUtil.calculateIndexKlines(stockCodes, "20250101", "20250830", 101, 0);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            // 3️⃣ 创建指数 K 线图窗口
+            KLineStage indexStage = null;
+            try {
+                indexStage = new KLineStage(stockKlines, getCurrGroup().getName());
+                indexStage.initOwner(stage);
                 // 4️⃣ 显示窗口
                 indexStage.show();
             } catch (Exception ex) {
@@ -183,12 +188,8 @@ public class MainStage extends AppStage {
         });
 
         Menu menu = new Menu("菜单", null, addItem, addGroupItem, index);
-        Menu menuClickMe = new Menu("点我看看", null,
-                new Menu("再点试试", null,
-                        new Menu("再点一下", null,
-                                new Menu("最后一下", null, mi))));
 
-        MenuBar menuBar = new MenuBar(menu, menuClickMe);
+        MenuBar menuBar = new MenuBar(menu);
         menuBar.setPadding(new Insets(5, 10, 5, 10));
         return menuBar;
     }
