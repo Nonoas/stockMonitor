@@ -137,6 +137,24 @@ public class MainStage extends AppStage {
         MenuItem mi = new MenuItem("点我看看");
         mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
 
+        MenuItem index = new MenuItem("查看指数");
+        index.setOnAction(e -> {
+            List<String> stockCodes = getCurrGroup().getTableView().getItems()
+                    .stream()
+                    .map(stock -> stock.getMarketCode() + "." + stock.getRawCode())
+                    .toList();
+
+            // 3️⃣ 创建指数 K 线图窗口
+            IndexKLineStage indexStage = null;
+            try {
+                indexStage = new IndexKLineStage("自定义指数 K 线图", stockCodes);
+                // 4️⃣ 显示窗口
+                indexStage.show();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+
         MenuItem addItem = new MenuItem("添加股票");
         addItem.setOnAction(e -> showAddStockDialog(stage));
 
@@ -164,7 +182,7 @@ public class MainStage extends AppStage {
             });
         });
 
-        Menu menu = new Menu("菜单", null, addItem, addGroupItem);
+        Menu menu = new Menu("菜单", null, addItem, addGroupItem, index);
         Menu menuClickMe = new Menu("点我看看", null,
                 new Menu("再点试试", null,
                         new Menu("再点一下", null,
