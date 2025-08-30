@@ -18,10 +18,11 @@ import java.util.List;
 public class KLineStage extends Stage {
 
     public KLineStage(List<EastMoneyKlineUtil.StockKline> klineData, String name) {
-        Label label = new Label(name);
-        label.setFont(new Font(40));
-        label.setAlignment(Pos.CENTER);
-        label.setMaxWidth(Double.MAX_VALUE);
+        setMaximized(false);
+        Label titleLabel = new Label(name);
+        titleLabel.setFont(new Font(40));
+        titleLabel.setAlignment(Pos.CENTER);
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
 
         Pane pane = new Pane();
         double width = 1200;
@@ -34,6 +35,28 @@ public class KLineStage extends Stage {
         int n = klineData.size();
         double candleWidth = (width - 2 * padding) / n * 0.6;
         double spacing = (width - 2 * padding) / n;
+
+        // 网格和坐标
+        for (int i = 0; i <= 10; i++) {
+            double y = padding + i * (height - 2 * padding) / 10;
+            Line line = new Line(padding, y, width - padding, y);
+            line.setStroke(Color.LIGHTGRAY);
+            line.getStrokeDashArray().addAll(5.0, 5.0);
+            pane.getChildren().add(line);
+        }
+
+        Label infoLabel = new Label();
+        infoLabel.setStyle("-fx-background-color: white; -fx-border-color: black;");
+        infoLabel.setVisible(false);
+        pane.getChildren().add(infoLabel);
+
+        Line verticalLine = new Line();
+        verticalLine.setStroke(Color.GRAY);
+        verticalLine.setVisible(false);
+        Line horizontalLine = new Line();
+        horizontalLine.setStroke(Color.GRAY);
+        horizontalLine.setVisible(false);
+        pane.getChildren().addAll(verticalLine, horizontalLine);
 
         for (int i = 0; i < klineData.size(); i++) {
             EastMoneyKlineUtil.StockKline k = klineData.get(i);
@@ -48,16 +71,54 @@ public class KLineStage extends Stage {
             line.setStroke(k.close >= k.open ? Color.RED : Color.GREEN);
 
             double rectY = Math.min(yOpen, yClose);
-            double rectHeight = Math.abs(yClose - yOpen);
+            double rectHeight = Math.max(Math.abs(yClose - yOpen), 1);
             Rectangle rect = new Rectangle(x - candleWidth / 2, rectY, candleWidth, rectHeight);
             rect.setFill(k.close >= k.open ? Color.RED : Color.GREEN);
 
+            int index = i;
+            rect.setOnMouseEntered(e -> {
+                infoLabel.toFront();
+                EastMoneyKlineUtil.StockKline kline = klineData.get(index);
+                infoLabel.setText(
+                        "开盘: " + kline.open +
+                                "\n收盘: " + kline.close +
+                                "\n最高: " + kline.high +
+                                "\n最低: " + kline.low
+                );
+                infoLabel.setVisible(true);
+                verticalLine.setVisible(true);
+                horizontalLine.setVisible(true);
+            });
+
+            rect.setOnMouseMoved(e -> {
+                infoLabel.setLayoutX(e.getX() + 20);
+                infoLabel.setLayoutY(e.getY() - 10);
+
+                verticalLine.setStartX(e.getX());
+                verticalLine.setEndX(e.getX());
+                verticalLine.setStartY(padding);
+                verticalLine.setEndY(height - padding);
+
+                horizontalLine.setStartY(e.getY());
+                horizontalLine.setEndY(e.getY());
+                horizontalLine.setStartX(padding);
+                horizontalLine.setEndX(width - padding);
+            });
+
+            rect.setOnMouseExited(e -> {
+                infoLabel.setVisible(false);
+                verticalLine.setVisible(false);
+                horizontalLine.setVisible(false);
+            });
+
             pane.getChildren().addAll(line, rect);
         }
+
         VBox root = new VBox();
         VBox.setVgrow(pane, Priority.ALWAYS);
         root.setFillWidth(true);
-        root.getChildren().addAll(label, pane);
+        root.getChildren().addAll(titleLabel, pane);
+
         Scene scene = new Scene(root, width, height);
         this.setTitle("K线图");
         this.setScene(scene);
