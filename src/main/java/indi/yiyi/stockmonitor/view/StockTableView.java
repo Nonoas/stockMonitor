@@ -1,5 +1,6 @@
 package indi.yiyi.stockmonitor.view;
 
+import github.nonoas.jfx.flat.ui.control.AlignedTableColumn;
 import indi.yiyi.stockmonitor.AppContext;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
@@ -50,32 +51,33 @@ public class StockTableView extends TableView<StockRow> {
     public StockTableView(StockGroup stockGroup) {
         this.stockGroup = stockGroup;
 
-        TableColumn<StockRow, Number> colIndex = new TableColumn<>("序号");
+        TableColumn<StockRow, Number> colIndex = new AlignedTableColumn<>("序号", AlignedTableColumn.Alignment.CENTER);
         colIndex.setPrefWidth(40);
-        colIndex.setMinWidth(40);
+        colIndex.setMinWidth(50);
         colIndex.setCellValueFactory(c -> c.getValue().indexProperty());
 
         TableColumn<StockRow, String> colCode = new TableColumn<>("股票代码");
         colCode.setPrefWidth(120);
         colCode.setCellValueFactory(c -> c.getValue().codeProperty());
 
-        TableColumn<StockRow, String> colName = new TableColumn<>("股票名称");
+        TableColumn<StockRow, String> colName = new AlignedTableColumn<>("股票名称", AlignedTableColumn.Alignment.CENTER);
         colName.setPrefWidth(140);
         colName.setCellValueFactory(c -> c.getValue().nameProperty());
 
-        TableColumn<StockRow, Number> colChangeRate = new TableColumn<>("涨跌幅");
+        TableColumn<StockRow, Number> colChangeRate = new AlignedTableColumn<>("涨跌幅", AlignedTableColumn.Alignment.CENTER);
+
         colChangeRate.setPrefWidth(100);
         colChangeRate.setCellValueFactory(c -> c.getValue().changeRateProperty());
         colChangeRate.setComparator(Comparator.comparingDouble(n -> n == null ? 0.0 : n.doubleValue()));
         // 显示成百分比文本
-        colChangeRate.setCellFactory(percentCell(2));
+        colChangeRate.setCellFactory(percentCell());
 
-        TableColumn<StockRow, Number> colPrice = new TableColumn<>("当前股价");
+        TableColumn<StockRow, Number> colPrice = new AlignedTableColumn<>("当前股价", AlignedTableColumn.Alignment.CENTER);
         colPrice.setPrefWidth(120);
         colPrice.setCellValueFactory(c -> c.getValue().priceProperty());
         colPrice.setCellFactory(formatNumber());
 
-        TableColumn<StockRow, Number> colChangeAmt = new TableColumn<>("当日涨跌");
+        TableColumn<StockRow, Number> colChangeAmt = new AlignedTableColumn<>("当日涨跌", AlignedTableColumn.Alignment.CENTER);
         colChangeAmt.setPrefWidth(120);
         colChangeAmt.setCellValueFactory(c -> c.getValue().changeAmtProperty());
         colChangeAmt.setCellFactory(formatNumber());
@@ -209,7 +211,7 @@ public class StockTableView extends TableView<StockRow> {
 
 
     // 定义一个百分比单元格工厂
-    private static Callback<TableColumn<StockRow, Number>, TableCell<StockRow, Number>> percentCell(int scale) {
+    private static Callback<TableColumn<StockRow, Number>, TableCell<StockRow, Number>> percentCell() {
         return col -> new TableCell<>() {
             @Override
             protected void updateItem(Number v, boolean empty) {
@@ -217,7 +219,8 @@ public class StockTableView extends TableView<StockRow> {
                 if (empty || v == null) {
                     setText(null);
                 } else {
-                    setText(String.format(Locale.CHINA, "%." + scale + "f%%", v.doubleValue() * 100));
+                    setText(String.format(Locale.CHINA, "%.2f%%", v.doubleValue() * 100));
+                    setStyle("-fx-alignment: " + AlignedTableColumn.Alignment.RIGHT.getCellCss() + ";");
                 }
             }
         };
@@ -232,6 +235,7 @@ public class StockTableView extends TableView<StockRow> {
                     setText(null);
                 } else {
                     setText(String.format(Locale.CHINA, "%.3f", value.doubleValue()));
+                    setStyle("-fx-alignment: " + AlignedTableColumn.Alignment.RIGHT.getCellCss() + ";");
                 }
             }
         };
