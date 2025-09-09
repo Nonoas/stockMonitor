@@ -9,6 +9,7 @@ import github.nonoas.jfx.flat.ui.stage.ToastQueue;
 import indi.yiyi.stockmonitor.data.Stock;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
+import indi.yiyi.stockmonitor.utils.DateUtils;
 import indi.yiyi.stockmonitor.utils.EastMoneyKlineUtil;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
@@ -144,16 +145,18 @@ public class MainStage extends AppStage {
                     .toList();
             List<EastMoneyKlineUtil.StockKline> stockKlines;
             try {
-              stockKlines = EastMoneyKlineUtil.calculateIndexKlines(stockCodes, "20250101", "20250830", 101, 0);
+              stockKlines = EastMoneyKlineUtil.calculateIndexKlines(stockCodes,
+                      "20250101",
+                      DateUtils.getCurrentDate(), 101, 0);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            // 3️⃣ 创建指数 K 线图窗口
+            // 创建指数 K 线图窗口
             KLineStage indexStage = null;
             try {
                 indexStage = new KLineStage(stockKlines, getCurrGroup().getName());
                 indexStage.initOwner(stage);
-                // 4️⃣ 显示窗口
+                // 显示窗口
                 indexStage.show();
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
