@@ -3,7 +3,6 @@ package indi.yiyi.stockmonitor.utils;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import indi.yiyi.stockmonitor.CSVConfig;
 import indi.yiyi.stockmonitor.data.Stock;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -142,9 +141,6 @@ public class GroupConfig {
      * 获取某个分组的股票
      */
     public static synchronized List<Stock> getStocksOf(String groupName) {
-        if ("全部".equals(groupName)) {
-            return CSVConfig.getConfig();
-        }
         return rootCache.getGroups().stream()
                 .filter(g -> g.getName().equals(groupName))
                 .findFirst()

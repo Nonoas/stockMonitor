@@ -13,6 +13,7 @@ import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
 import indi.yiyi.stockmonitor.view.PlayfulHelper;
+import indi.yiyi.stockmonitor.view.StockColorSettingsDialog;
 import indi.yiyi.stockmonitor.view.StockSearchDialog;
 import indi.yiyi.stockmonitor.view.StockTab;
 import indi.yiyi.stockmonitor.view.StockTableView;
@@ -59,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nonoas
  * @date 2025/8/20
- * @since
+ * @since 1.0.0
  */
 public class MainStage extends AppStage {
     private static final Logger LOG = LogManager.getLogger(MainStage.class);
@@ -143,6 +144,7 @@ public class MainStage extends AppStage {
         MenuItem addGroupItem = new MenuItem("添加分组");
         addGroupItem.setOnAction(e -> {
             TextInputDialog dialog = new TextInputDialog();
+            dialog.initOwner(stage);
             dialog.setTitle("添加分组");
             dialog.setHeaderText("请输入新分组名称");
             dialog.setContentText("分组名称:");
@@ -164,11 +166,26 @@ public class MainStage extends AppStage {
             });
         });
 
-        Menu menu = new Menu("菜单", null, addItem, addGroupItem);
+        MenuItem colorSetting = new MenuItem("颜色设置");
+        colorSetting.setOnAction(
+                e -> {
+                    // 1. 创建对话框实例，传入当前的颜色设置
+                    StockColorSettingsDialog dialog = new StockColorSettingsDialog();
+                    dialog.initOwner(stage);
+                    // 2. 显示对话框并等待结果
+                    dialog.showAndWait().ifPresent(newColors -> {
+                        System.out.println("新的颜色设置已保存：" + newColors);
+                    });
+                }
+        );
+
+        Menu menu = new Menu("菜单", null, addItem, addGroupItem, colorSetting);
         Menu menuClickMe = new Menu("点我看看", null,
                 new Menu("再点试试", null,
                         new Menu("再点一下", null,
-                                new Menu("最后一下", null, mi))));
+                                new Menu("最后一下", null
+                                        , mi))));
+
 
         MenuBar menuBar = new MenuBar(menu, menuClickMe);
         menuBar.setPadding(new Insets(5, 10, 5, 10));
@@ -233,19 +250,16 @@ public class MainStage extends AppStage {
 
             Platform.runLater(() -> {
                 StockTableView table = group.getTableView();
-                int idx = 0;
                 for (Optional<StockRow> opt : results) {
                     if (opt.isEmpty()) continue;
                     StockRow row = opt.get();
-                    idx++;
-                    row.setIndex(idx);
                     String key = row.getMarketCode() + "_" + row.getRawCode();
                     if (!table.getRowByKey().containsKey(key)) {
                         table.getRowByKey().put(key, row);
+                        row.setIndex(table.getItems().size() + 1);
                         table.getItems().add(row);
                     } else {
                         StockRow existed = table.getRowByKey().get(key);
-                        existed.setIndex(idx);
                         existed.setName(row.getName());
                         existed.setPrice(row.getPrice());
                         existed.setChangeRate(row.getChangeRate());
@@ -361,7 +375,6 @@ public class MainStage extends AppStage {
                 okBtnV.setDisable(false);
                 if (err != null || opt.isEmpty() || opt.get().getName() == null || opt.get().getName().isBlank()) {
                     // 回滚 CSV
-                    CSVConfig.removeStock(market, code);
                     waiting.setContentText("抱歉，没有找到" + code + "这只股票的有效行情（可能代码错误/无数据/停牌）。");
                     return;
                 }
@@ -369,17 +382,19 @@ public class MainStage extends AppStage {
                 // 校验通过：更新表格（立即展示这条）
                 StockRow row = opt.get();
                 String key = row.getMarketCode() + "_" + row.getRawCode();
-                StockRow existed = table.getRowByKey().get(key);
-                if (existed == null) {
-                    row.setIndex(table.getItems().size() + 1);
-                    table.getRowByKey().put(key, row);
-                    table.getItems().add(row);
-                } else {
-                    existed.setName(row.getName());
-                    existed.setPrice(row.getPrice());
-                    existed.setChangeRate(row.getChangeRate());
-                    existed.setChangeRateStr(row.getChangeRateStr());
-                    existed.setChangeAmt(row.getChangeAmt());
+                synchronized (table) {
+                    StockRow existed = table.getRowByKey().get(key);
+                    if (existed == null) {
+                        row.setIndex(table.getItems().size() + 1);
+                        table.getRowByKey().put(key, row);
+                        table.getItems().add(row);
+                    } else {
+                        existed.setName(row.getName());
+                        existed.setPrice(row.getPrice());
+                        existed.setChangeRate(row.getChangeRate());
+                        existed.setChangeRateStr(row.getChangeRateStr());
+                        existed.setChangeAmt(row.getChangeAmt());
+                    }
                 }
                 waiting.close();
                 ToastQueue.show(stage, "添加成功：" + (market.equals("0") ? "SZ" : "SH") + code + " · " + row.getName(),

@@ -1,6 +1,11 @@
 .root {
     -fx-font-size: 12px;
+    /* 股票上涨色 (默认红色) */
+    -stock-up-color: #e53935;
+    /* 股票下跌色 (默认绿色) */
+    -stock-down-color: #1d9f3e;
 }
+
 
 .dialog-pane .content {
     -fx-text-fill: #111;
@@ -83,29 +88,32 @@
 
 
 /* 整行里所有单元格文字跟随伪类变色 */
+/* 文本颜色 */
 .table-row-cell:up .table-cell {
-    -fx-text-fill: red;
+    -fx-text-fill: -stock-up-color;
 }
 
 .table-row-cell:down .table-cell {
-    -fx-text-fill: green;
+    -fx-text-fill: -stock-down-color;
 }
 
-/* 可选：给行一个很淡的背景提示 */
+/* 行背景颜色 */
+/* 这里的颜色需要使用 JavaFX 的 color 函数来添加透明度，因为不能直接在 CSS 中对变量进行操作 */
 .table-row-cell:up {
-    -fx-background-color: rgba(255, 0, 0, 0.06);
+    -fx-background-color: derive(-stock-up-color, 120%); /* 增加亮度，达到类似 rgba(r,g,b, 0.06) 的淡色效果 */
 }
 
 .table-row-cell:down {
-    -fx-background-color: rgba(0, 128, 0, 0.06);
+    -fx-background-color: derive(-stock-down-color, 120%);
 }
 
+/* 悬停/选中时的背景颜色 */
 .table-row-cell:up:hover,
 .table-row-cell:up:selected {
-    -fx-background-color: rgba(255, 0, 0, 0.2);
+    -fx-background-color: derive(-stock-up-color, 90%); /* 增加亮度，达到类似 rgba(r,g,b, 0.2) 的效果 */
 }
 
 .table-row-cell:down:hover,
 .table-row-cell:down:selected {
-    -fx-background-color: rgba(0, 128, 0, 0.2);
+    -fx-background-color: derive(-stock-down-color, 90%);
 }
