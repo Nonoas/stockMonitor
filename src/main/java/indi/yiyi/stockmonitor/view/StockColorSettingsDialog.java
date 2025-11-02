@@ -2,6 +2,7 @@ package indi.yiyi.stockmonitor.view;
 
 
 import indi.yiyi.stockmonitor.data.StockColors;
+import indi.yiyi.stockmonitor.utils.AppConfig;
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -9,6 +10,7 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
 
 /**
  * 独立的颜色设置对话框，用于修改股票颜色设置。
@@ -21,16 +23,17 @@ public class StockColorSettingsDialog extends Dialog<StockColors> {
 
     private final ColorPicker upColorPicker;
     private final ColorPicker downColorPicker;
-    private final ColorPicker flatColorPicker;
 
     public StockColorSettingsDialog() {
         // 设置对话框的基本属性
         setTitle("股票颜色设置");
 
+        String up = AppConfig.getConfigManager().get("color.up", "#e53935");
+        String down = AppConfig.getConfigManager().get("color.down", "#1d9f3e");
+
         // --- 1. 初始化 ColorPicker 并设置初始值 ---
-        upColorPicker = new ColorPicker();
-        downColorPicker = new ColorPicker();
-        flatColorPicker = new ColorPicker();
+        upColorPicker = new ColorPicker(Color.web(up));
+        downColorPicker = new ColorPicker(Color.web(down));
 
         // --- 2. 创建布局并添加控件 ---
         GridPane grid = new GridPane();
@@ -44,9 +47,6 @@ public class StockColorSettingsDialog extends Dialog<StockColors> {
 
         grid.add(new Label("下跌颜色:"), 0, 1);
         grid.add(downColorPicker, 1, 1);
-
-        grid.add(new Label("平盘颜色:"), 0, 2);
-        grid.add(flatColorPicker, 1, 2);
 
         getDialogPane().setContent(grid);
 
@@ -62,7 +62,7 @@ public class StockColorSettingsDialog extends Dialog<StockColors> {
                 return new StockColors(
                         upColorPicker.getValue(),
                         downColorPicker.getValue(),
-                        flatColorPicker.getValue()
+                        null
                 );
             }
             // 如果点击取消，返回 null

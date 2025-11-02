@@ -9,6 +9,7 @@ import github.nonoas.jfx.flat.ui.stage.ToastQueue;
 import indi.yiyi.stockmonitor.data.Stock;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
+import indi.yiyi.stockmonitor.utils.AppConfig;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.FXAlert;
@@ -104,6 +105,13 @@ public class MainStage extends AppStage {
             }
         });
 
+        String mergedStyle = String.format(
+                "-stock-up-color: %s; -stock-down-color: %s;",
+                AppConfig.getConfigManager().get("color.up"),
+                AppConfig.getConfigManager().get("color.down")
+        );
+        tabPane.setStyle(mergedStyle);
+
         // 加载分组中的股票
         initGroups();
 
@@ -174,7 +182,22 @@ public class MainStage extends AppStage {
                     dialog.initOwner(stage);
                     // 2. 显示对话框并等待结果
                     dialog.showAndWait().ifPresent(newColors -> {
-                        System.out.println("新的颜色设置已保存：" + newColors);
+                        // 获取并转换颜色值
+                        String upColorStyle = UIUtil.toWebColor(newColors.getUpColor());
+                        String downColorStyle = UIUtil.toWebColor(newColors.getDownColor());
+
+                        AppConfig.getConfigManager().set("color.up", upColorStyle);
+                        AppConfig.getConfigManager().set("color.down", downColorStyle);
+
+                        // 3. 核心：合并样式字符串
+                        String mergedStyle = String.format(
+                                "-stock-up-color: %s; -stock-down-color: %s;",
+                                upColorStyle,
+                                downColorStyle
+                        );
+
+                        // 4. 只调用一次 setStyle()
+                        tabPane.setStyle(mergedStyle);
                     });
                 }
         );
