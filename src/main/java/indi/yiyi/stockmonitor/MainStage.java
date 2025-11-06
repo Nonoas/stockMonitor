@@ -105,10 +105,11 @@ public class MainStage extends AppStage {
             }
         });
 
+        /* 股票下跌色 (默认绿色) */
         String mergedStyle = String.format(
                 "-stock-up-color: %s; -stock-down-color: %s;",
-                AppConfig.getConfigManager().get("color.up"),
-                AppConfig.getConfigManager().get("color.down")
+                AppConfig.getConfigManager().get("color.up","#e53935"),
+                AppConfig.getConfigManager().get("color.down","#1d9f3e;")
         );
         tabPane.setStyle(mergedStyle);
 
