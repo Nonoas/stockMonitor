@@ -12,15 +12,12 @@ import indi.yiyi.stockmonitor.data.StockRow;
 import indi.yiyi.stockmonitor.utils.AppConfig;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
-import indi.yiyi.stockmonitor.view.FXAlert;
-import indi.yiyi.stockmonitor.view.PlayfulHelper;
-import indi.yiyi.stockmonitor.view.StockColorSettingsDialog;
-import indi.yiyi.stockmonitor.view.StockSearchDialog;
-import indi.yiyi.stockmonitor.view.StockTab;
-import indi.yiyi.stockmonitor.view.StockTableView;
+import indi.yiyi.stockmonitor.view.*;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -63,7 +60,7 @@ import java.util.concurrent.TimeUnit;
  * @date 2025/8/20
  * @since 1.0.0
  */
-public class MainStage extends AppStage {
+public class MainStage extends BaseStage {
     private static final Logger LOG = LogManager.getLogger(MainStage.class);
     private final TabPane tabPane = new TabPane();
     private final ScheduledExecutorService scheduler;
@@ -82,9 +79,6 @@ public class MainStage extends AppStage {
     private final Stage stage = getStage();
 
     public MainStage() {
-        setTitle("盯盘小助手");
-        addIcons(Collections.singleton(new Image("image/logo.png")));
-        stage.getScene().getStylesheets().add("css/style.css");
 
         stage.setWidth(500);
         stage.setHeight(420);
@@ -144,8 +138,6 @@ public class MainStage extends AppStage {
 
     @NotNull
     private MenuBar getMenuBar() {
-        MenuItem mi = new MenuItem("点我看看");
-        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
 
         MenuItem addItem = new MenuItem("添加股票");
         addItem.setOnAction(e -> showAddStockDialog(stage));
@@ -197,13 +189,22 @@ public class MainStage extends AppStage {
                                 downColorStyle
                         );
 
-                        // 4. 只调用一次 setStyle()
                         tabPane.setStyle(mergedStyle);
                     });
                 }
         );
 
-        Menu menu = new Menu("菜单", null, addItem, addGroupItem, colorSetting);
+        MenuItem miAi = new MenuItem("Ai助手");
+        miAi.setOnAction(actionEvent -> {
+            AIStage aiStage = new AIStage(System.getenv("DEEPSEEK_API_KEY"), getStocksOfCurrentGroup());
+            aiStage.getStage().initOwner(stage);
+            aiStage.show();
+        });
+
+        MenuItem mi = new MenuItem("点我看看");
+        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
+
+        Menu menu = new Menu("菜单", null, addItem, addGroupItem, colorSetting, miAi);
         Menu menuClickMe = new Menu("点我看看", null,
                 new Menu("再点试试", null,
                         new Menu("再点一下", null,
@@ -295,6 +296,17 @@ public class MainStage extends AppStage {
         } catch (Exception e) {
             LOG.error("fetch error: " + e.getMessage());
         }
+    }
+
+    private List<Stock> getStocksOfCurrentGroup() {
+        Tab selected = tabPane.getSelectionModel().getSelectedItem();
+        if (selected == null) return Collections.emptyList();
+
+        String groupName = selected.getText();
+        StockGroup group = groups.get(groupName);
+        if (group == null) return Collections.emptyList();
+
+        return GroupConfig.getStocksOf(groupName);
     }
 
 
