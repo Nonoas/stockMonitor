@@ -89,6 +89,7 @@ tasks.register('packageMyApp', PackageTask) {
     bundleJre = true
     generateInstaller = false
     administratorRequired = false
+    additionalResources = [ file('config') ]
     winConfig { createZipball = true }
 
 }
