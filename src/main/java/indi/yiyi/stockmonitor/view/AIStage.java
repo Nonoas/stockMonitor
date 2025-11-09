@@ -39,8 +39,6 @@ public class AIStage extends BaseStage {
 
     private final Assistant assistant;
 
-    public static final int CHAT_MEMORY_ID = 0;
-
     public AIStage(String deepseekApiKey, List<Stock> stocksOfCurrentGroup) {
         if (deepseekApiKey == null || deepseekApiKey.isEmpty()) {
             throw new IllegalArgumentException("DEEPSEEK_API_KEY 不能为空");
@@ -53,11 +51,12 @@ public class AIStage extends BaseStage {
                 .modelName("kimi-k2-turbo-preview")
                 .build();
 
+        String systemMsg = injectDynamicContext(stocksOfCurrentGroup);
 
         this.assistant = AiServices.builder(Assistant.class)
                 .chatLanguageModel(model)
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
-                .systemMessageProvider(memoryId -> injectDynamicContext(stocksOfCurrentGroup))
+                .systemMessageProvider(memoryId -> systemMsg)
                 .build();
 
         // 5. 初始化 UI 组件

@@ -10,6 +10,7 @@ import indi.yiyi.stockmonitor.data.Stock;
 import indi.yiyi.stockmonitor.data.StockGroup;
 import indi.yiyi.stockmonitor.data.StockRow;
 import indi.yiyi.stockmonitor.utils.AppConfig;
+import indi.yiyi.stockmonitor.utils.FileUtil;
 import indi.yiyi.stockmonitor.utils.GroupConfig;
 import indi.yiyi.stockmonitor.utils.UIUtil;
 import indi.yiyi.stockmonitor.view.*;
@@ -35,6 +36,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
+import opennlp.tools.util.StringUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -197,23 +200,24 @@ public class MainStage extends BaseStage {
         MenuItem miAi = new MenuItem("Ai助手");
         miAi.setOnAction(actionEvent -> {
 //            AIStage aiStage = new AIStage(System.getenv("DEEPSEEK_API_KEY"), getStocksOfCurrentGroup());
-            AIStage aiStage = new AIStage(System.getenv("KIMI_API_KEY"), getStocksOfCurrentGroup());
+            String kimiApiKey = System.getenv("KIMI_API_KEY");
+            if (StringUtils.isEmpty(kimiApiKey)) {
+                try {
+                    kimiApiKey = FileUtil.readTextFromProjectRelativePath("config/apikey");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            AIStage aiStage = new AIStage(kimiApiKey, getStocksOfCurrentGroup());
             aiStage.getStage().initOwner(stage);
             aiStage.show();
         });
 
-        MenuItem mi = new MenuItem("点我看看");
-        mi.setOnAction(e -> PlayfulHelper.start(stage)); // 传你的主 Stage
-
-        Menu menu = new Menu("菜单", null, addItem, addGroupItem, colorSetting, miAi);
-        Menu menuClickMe = new Menu("点我看看", null,
-                new Menu("再点试试", null,
-                        new Menu("再点一下", null,
-                                new Menu("最后一下", null
-                                        , mi))));
+        Menu menu = new Menu("菜单", null, addItem, addGroupItem, colorSetting);
+        Menu menuAi = new Menu("点我看看", null, miAi);
 
 
-        MenuBar menuBar = new MenuBar(menu, menuClickMe);
+        MenuBar menuBar = new MenuBar(menu, menuAi);
         menuBar.setPadding(new Insets(5, 10, 5, 10));
         return menuBar;
     }
@@ -295,7 +299,7 @@ public class MainStage extends BaseStage {
                 }
             });
         } catch (Exception e) {
-            LOG.error("fetch error: " + e.getMessage());
+            LOG.error("fetch error: {}", e.getMessage());
         }
     }
 
@@ -378,7 +382,7 @@ public class MainStage extends BaseStage {
         dialog.initOwner(owner);
         dialog.showAndWait().ifPresent(suggestion -> {
             String codeVar = suggestion.getCode();
-            String marketVar = "-1";
+            String marketVar;
             if (codeVar.startsWith("SZ")) {
                 marketVar = "0";
                 codeVar = codeVar.replace("SZ", "");
