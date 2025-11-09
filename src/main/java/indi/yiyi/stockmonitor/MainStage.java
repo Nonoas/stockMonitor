@@ -196,7 +196,8 @@ public class MainStage extends BaseStage {
 
         MenuItem miAi = new MenuItem("Ai助手");
         miAi.setOnAction(actionEvent -> {
-            AIStage aiStage = new AIStage(System.getenv("DEEPSEEK_API_KEY"), getStocksOfCurrentGroup());
+//            AIStage aiStage = new AIStage(System.getenv("DEEPSEEK_API_KEY"), getStocksOfCurrentGroup());
+            AIStage aiStage = new AIStage(System.getenv("KIMI_API_KEY"), getStocksOfCurrentGroup());
             aiStage.getStage().initOwner(stage);
             aiStage.show();
         });

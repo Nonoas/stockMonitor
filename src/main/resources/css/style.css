@@ -6,6 +6,11 @@
     -stock-down-color: #1d9f3e;
 }
 
+.markdown-text {
+    -fx-font-size: 12px !important;
+    -fx-fill: -mdfx-font-color;
+}
+
 
 .dialog-pane .content {
     -fx-text-fill: #111;
