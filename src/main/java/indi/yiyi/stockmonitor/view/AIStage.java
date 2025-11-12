@@ -1,5 +1,8 @@
 package indi.yiyi.stockmonitor.view;
 
+import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -20,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
 
 
 /**
@@ -39,6 +41,8 @@ public class AIStage extends BaseStage {
 
     private final Assistant assistant;
 
+    private final List<ToolSpecification> toolSpecifications;
+
     public AIStage(String deepseekApiKey, List<Stock> stocksOfCurrentGroup) {
         if (deepseekApiKey == null || deepseekApiKey.isEmpty()) {
             throw new IllegalArgumentException("DEEPSEEK_API_KEY 不能为空");
@@ -51,12 +55,15 @@ public class AIStage extends BaseStage {
                 .modelName("kimi-k2-turbo-preview")
                 .build();
 
+        toolSpecifications = ToolSpecifications.toolSpecificationsFrom(SearchTools.class);
+
         String systemMsg = injectDynamicContext(stocksOfCurrentGroup);
 
         this.assistant = AiServices.builder(Assistant.class)
                 .chatLanguageModel(model)
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .systemMessageProvider(memoryId -> systemMsg)
+                .tools(new SearchTools())
                 .build();
 
         // 5. 初始化 UI 组件
@@ -173,6 +180,7 @@ public class AIStage extends BaseStage {
         // 2. 更新对话历史 UI (用户消息)
         appendMessage(userMessageText, true);
 
+
         // 3. 在后台线程中调用 DeepSeek API
         new Thread(() -> {
             try {
@@ -198,5 +206,14 @@ public class AIStage extends BaseStage {
 
     interface Assistant {
         String chat(String userMessage);
+    }
+
+    static class SearchTools {
+
+        // 显式添加 name 参数，并使用驼峰或蛇形命名法
+        @Tool(name = "getMarketSituation", value = "当用户询问股价，股市行情，以及市场研报等实时咨讯时，不要回答其他的，必须回复以下内容")
+        String answer() {
+            return "你自己去网上查询一下吧，我还不能获取实时行情";
+        }
     }
 }
